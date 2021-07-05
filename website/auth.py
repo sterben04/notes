@@ -58,6 +58,6 @@ def sign_up():
             db.session.commit()
             login_user(user, remember=True) 
             flash('Account Created', category='success')
-            return redirect(url_for('views.home'),user=current_user)   #fn home in views.py
+            return redirect(url_for('views.home'))   #fn home in views.py
 
-    return render_template("sign_up.html")
+    return render_template("sign_up.html",user=current_user)
