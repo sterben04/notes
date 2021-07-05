@@ -2,20 +2,35 @@ from flask import Blueprint, render_template, request, flash, redirect, url_for
 from .models import User
 from werkzeug.security import generate_password_hash, check_password_hash
 from . import db #from init.py
+from flask_login import login_user, login_required, logout_user, current_user   
 
 auth = Blueprint('auth', __name__)
 
 
 @auth.route('/login', methods=['GET', 'POST'])
 def login():
-    data = request.form
-    print(data)
-    return render_template("login.html",boolean=True)
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        user = User.query.filter_by(email=email).first()  #user will have only one email as that column is unique
+        if user:
+            if check_password_hash(user.password, password): #compare both passwords
+                flash('Logged in succesfully', category='success') 
+                login_user(user, remember=True)  
+                return redirect(url_for('views.home'))
+            else:
+                flash('Incorrect password', category='error')
+        else:
+            flash('Email doesn\'t exist', category='error')
+
+    return render_template("login.html",user=current_user)
 
 
 @auth.route('/logout')
+@login_required   #this makes sure we can't access this page without logging in first
 def logout():
-    return "<p>logout</p>"
+    logout_user()
+    return redirect(url_for('auth.login'))
 
 
 @auth.route('/sign-up', methods=['GET', 'POST'])
@@ -26,7 +41,10 @@ def sign_up():
         password1 = request.form.get("password1")
         password2 = request.form.get("password2")
 
-        if len(email) < 4:
+        user = User.query.filter_by(email=email).first()
+        if user:
+            flash('Email already exists', category='error')
+        elif len(email) < 4:
             flash('Email must be greater than 4 char', category="error")
         elif len(first_name) <= 2:
             flash('First Name must be greater than 2 char', category="error")
@@ -38,8 +56,8 @@ def sign_up():
             new_user = User(email=email, first_name=first_name, password=generate_password_hash(password1, method='sha256'))
             db.session.add(new_user)
             db.session.commit()
-
+            login_user(user, remember=True) 
             flash('Account Created', category='success')
-            return redirect(url_for('views.home'))   #fn home in views.py
+            return redirect(url_for('views.home'),user=current_user)   #fn home in views.py
 
     return render_template("sign_up.html")
